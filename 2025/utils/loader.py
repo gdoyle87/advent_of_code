@@ -27,3 +27,8 @@ def load_lines(day, strip=True):
     if strip:
         return [line.strip() for line in lines]
     return lines
+
+
+def load_grid(day, strip=True):
+    lines = load_lines(day, strip=strip)
+    return [list(line) for line in lines]
