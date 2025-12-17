@@ -7,45 +7,42 @@ Point = namedtuple("Point", ["x", "y", "z"])
 Edge = namedtuple("Edge", ["distance", "i", "j"])
 Data = namedtuple("Data", ["points", "edges", "n"])
 
+
+class DisjointSet:
+    def __init__(self, n):
+        self.parent = list(range(n))
+        self.circuit_sizes = [1] * n
+
+    def find(self, i):
+        if self.parent[i] == i:
+            return i
+        # otherwise set parent to parent's parent (flatten the tree)
+        self.parent[i] = self.find(self.parent[i])
+        return self.parent[i]
+
+    def union(self, i, j):
+        root_i = self.find(i)
+        root_j = self.find(j)
+
+        if root_i != root_j:
+            self.parent[root_j] = root_i
+            self.circuit_sizes[root_i] += self.circuit_sizes[root_j]
+            return True
+        return False
+
+
 CONNECTIONS_NEEDED = 1000
 
 
 def part1(data):
-    parent = list(range(data.n))  # initialize each as its own parent
-    circuit_sizes = [1] * data.n  # each circuit begins as size 1
-
-    def union(i, j):
-        def find(i):
-            if parent[i] == i:
-                return i
-            parent[i] = find(parent[i])
-            return parent[i]
-
-        root_i = find(i)
-        root_j = find(j)
-
-        if root_i != root_j:
-            #            if circuit_sizes[root_i] < circuit_sizes[root_j]:
-            #                root_i, root_j = root_j, root_i
-
-            # update the parent of j to be parent of i
-            parent[root_j] = root_i
-            # update the size of circuit i to also include the size of circuit j
-            circuit_sizes[root_i] += circuit_sizes[root_j]
-            return True
-        return False
-
-    # combine edges starting from shortest, stop once we have reached the required number of connections
-    connections = 0
-    for edge in data.edges:
-        union(edge.i, edge.j)
-        connections += 1
-        if connections == CONNECTIONS_NEEDED:
-            break
+    dsu = DisjointSet(data.n)
+    for k in range(CONNECTIONS_NEEDED):
+        edge = data.edges[k]
+        dsu.union(edge.i, edge.j)
 
     # circuit_sizes includes sizes for every point in edges, even when they are not a parent point.
     # Therefore we need to filter out nodes where the circuit is not a parent.
-    final_sizes = [circuit_sizes[i] for i in range(data.n) if parent[i] == i]
+    final_sizes = [dsu.circuit_sizes[i] for i in range(data.n) if dsu.parent[i] == i]
 
     # we want only the top 3 size circuits so sort desc
     final_sizes.sort(reverse=True)
