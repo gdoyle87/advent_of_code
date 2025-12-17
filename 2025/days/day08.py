@@ -87,7 +87,7 @@ def part2(data):
                 last_edge = edge
                 break
 
-    return data[last_edge.i].x * data[last_edge.j].x
+    return data.points[last_edge.i].x * data.points[last_edge.j].x
 
 
 def solve():
@@ -102,7 +102,7 @@ def solve():
     edges = []
     for i in range(n):
         for j in range(i + 1, n):
-            p1, p2 = data[i], data[j]
+            p1, p2 = points[i], points[j]
             distance_sq = (p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2 + (p1.z - p2.z) ** 2
             edges.append(Edge(distance_sq, i, j))
     edges.sort()
