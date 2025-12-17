@@ -1,0 +1,87 @@
+import math
+from collections import namedtuple
+
+from utils.loader import load_lines
+
+Point = namedtuple("Point", ["x", "y", "z"])
+Edge = namedtuple("Edge", ["distance", "i", "j"])
+Data = namedtuple("Data", ["points", "edges", "n"])
+
+
+class DisjointSet:
+    def __init__(self, n):
+        self.parent = list(range(n))
+        self.circuit_sizes = [1] * n
+
+    def find(self, i):
+        if self.parent[i] == i:
+            return i
+        # otherwise set parent to parent's parent (flatten the tree)
+        self.parent[i] = self.find(self.parent[i])
+        return self.parent[i]
+
+    def union(self, i, j):
+        root_i = self.find(i)
+        root_j = self.find(j)
+
+        if root_i != root_j:
+            self.parent[root_j] = root_i
+            self.circuit_sizes[root_i] += self.circuit_sizes[root_j]
+            return True
+        return False
+
+
+CONNECTIONS_NEEDED = 1000
+
+
+def part1(data):
+    dsu = DisjointSet(data.n)
+    for k in range(CONNECTIONS_NEEDED):
+        edge = data.edges[k]
+        dsu.union(edge.i, edge.j)
+
+    # dsu.circuit_sizes includes sizes for every point in edges, even when they are not a parent point.
+    # Therefore we need to filter out nodes where the circuit is not a parent.
+    final_sizes = [dsu.circuit_sizes[i] for i in range(data.n) if dsu.parent[i] == i]
+
+    # we want only the top 3 size circuits so sort desc
+    final_sizes.sort(reverse=True)
+    return math.prod(final_sizes[:3])
+
+
+def part2(data):
+    dsu = DisjointSet(data.n)
+
+    # combine edges starting from shortest, stop once we have connected all points (needs n - 1 connections)
+    connections = 0
+    last_edge = None
+    for edge in data.edges:
+        if dsu.union(edge.i, edge.j):
+            connections += 1
+            if connections == data.n - 1:
+                last_edge = edge
+                break
+
+    return data.points[last_edge.i].x * data.points[last_edge.j].x
+
+
+def solve():
+    data = load_lines(8)
+    points = []
+    for point in data:
+        x, y, z = map(int, point.split(","))
+        points.append(Point(x, y, z))
+
+    n = len(points)
+
+    edges = []
+    for i in range(n):
+        for j in range(i + 1, n):
+            p1, p2 = points[i], points[j]
+            distance_sq = (p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2 + (p1.z - p2.z) ** 2
+            edges.append(Edge(distance_sq, i, j))
+    edges.sort()
+
+    data = Data(points, edges, n)
+
+    return part1(data), part2(data)
