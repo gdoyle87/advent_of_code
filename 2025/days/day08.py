@@ -15,6 +15,7 @@ def part1(data):
             p1, p2 = data[i], data[j]
             distance_sq = (p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2 + (p1.z - p2.z) ** 2
             edges.append(Edge(distance_sq, i, j))
+    edges.sort()
     print(edges)
     return
 
