@@ -5,14 +5,23 @@ from utils.loader import load_lines
 Point = namedtuple("Point", ["x", "y"])
 Rectangle = namedtuple("Rectangle", ["area", "min_x", "max_x", "min_y", "max_y"])
 Edge = namedtuple("Edge", ["p1", "p2"])
+Data = namedtuple("Data", ["rectangles", "polygon"])
 
 
 def part1(data):
-    return data[0].area
+    return data.rectangles[0].area
 
 
 def part2(data):
-    pass
+    def is_inside(edges, x, y):
+        for edge in edges:
+            print(edge)
+            if (y < edge.p1.y) != (y < edge.p2.y):
+                print("y is between")
+            else:
+                print("y is not between")
+
+    is_inside(data.polygon[:2], 1, 1)
 
 
 def solve():
@@ -33,7 +42,16 @@ def solve():
             width = max_x - min_x + 1
             height = max_y - min_y + 1
             area = width * height
-            rectangles.append(Rectangle(area, min_x, max_x, min_y, max_x))
+            rectangles.append(Rectangle(area, min_x, max_x, min_y, max_y))
     rectangles.sort(reverse=True)
 
-    return part1(rectangles), part2(data)
+    polygon = []
+    for i in range(len(points)):
+        p1 = points[i]
+        p2 = points[(i + 1) % n]
+        polygon.append(Edge(p1, p2))
+    data = Data(rectangles, polygon)
+
+    print(polygon[:2])
+
+    return part1(data), part2(data)
