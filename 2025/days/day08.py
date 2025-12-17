@@ -5,23 +5,14 @@ from utils.loader import load_lines
 
 Point = namedtuple("Point", ["x", "y", "z"])
 Edge = namedtuple("Edge", ["distance", "i", "j"])
+Data = namedtuple("Data", ["points", "edges", "n"])
 
 CONNECTIONS_NEEDED = 1000
 
 
 def part1(data):
-    n = len(data)
-
-    edges = []
-    for i in range(n):
-        for j in range(i + 1, n):
-            p1, p2 = data[i], data[j]
-            distance_sq = (p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2 + (p1.z - p2.z) ** 2
-            edges.append(Edge(distance_sq, i, j))
-    edges.sort()
-
-    parent = list(range(n))  # initialize each as its own parent
-    circuit_sizes = [1] * n  # each circuit begins as size 1
+    parent = list(range(data.n))  # initialize each as its own parent
+    circuit_sizes = [1] * data.n  # each circuit begins as size 1
 
     def union(i, j):
         def find(i):
@@ -46,7 +37,7 @@ def part1(data):
 
     # combine edges starting from shortest, stop once we have reached the required number of connections
     connections = 0
-    for edge in edges:
+    for edge in data.edges:
         union(edge.i, edge.j)
         connections += 1
         if connections == CONNECTIONS_NEEDED:
@@ -54,7 +45,7 @@ def part1(data):
 
     # circuit_sizes includes sizes for every point in edges, even when they are not a parent point.
     # Therefore we need to filter out nodes where the circuit is not a parent.
-    final_sizes = [circuit_sizes[i] for i in range(n) if parent[i] == i]
+    final_sizes = [circuit_sizes[i] for i in range(data.n) if parent[i] == i]
 
     # we want only the top 3 size circuits so sort desc
     final_sizes.sort(reverse=True)
@@ -62,18 +53,8 @@ def part1(data):
 
 
 def part2(data):
-    n = len(data)
-
-    edges = []
-    for i in range(n):
-        for j in range(i + 1, n):
-            p1, p2 = data[i], data[j]
-            distance_sq = (p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2 + (p1.z - p2.z) ** 2
-            edges.append(Edge(distance_sq, i, j))
-    edges.sort()
-
-    parent = list(range(n))  # initialize each as its own parent
-    circuit_sizes = [1] * n  # each circuit begins as size 1
+    parent = list(range(data.n))  # initialize each as its own parent
+    circuit_sizes = [1] * data.n  # each circuit begins as size 1
 
     def union(i, j):
         def find(i):
@@ -99,10 +80,10 @@ def part2(data):
     # combine edges starting from shortest, stop once we have connected all points (needs n - 1 connections)
     connections = 0
     last_edge = None
-    for edge in edges:
+    for edge in data.edges:
         if union(edge.i, edge.j):
             connections += 1
-            if connections == n - 1:
+            if connections == data.n - 1:
                 last_edge = edge
                 break
 
@@ -116,4 +97,16 @@ def solve():
         x, y, z = map(int, point.split(","))
         points.append(Point(x, y, z))
 
-    return part1(points), part2(points)
+    n = len(data)
+
+    edges = []
+    for i in range(n):
+        for j in range(i + 1, n):
+            p1, p2 = data[i], data[j]
+            distance_sq = (p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2 + (p1.z - p2.z) ** 2
+            edges.append(Edge(distance_sq, i, j))
+    edges.sort()
+
+    data = Data(points, edges, n)
+
+    return part1(data), part2(data)
