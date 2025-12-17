@@ -3,11 +3,12 @@ from collections import namedtuple
 from utils.loader import load_lines
 
 Point = namedtuple("Point", ["x", "y"])
-Edge = namedtuple("Edge", ["distance", "i", "j"])
+Rectangle = namedtuple("Rectangle", ["area", "min_x", "max_x", "min_y", "max_y"])
+Edge = namedtuple("Edge", ["p1", "p2"])
 
 
 def part1(data):
-    return data[0].distance
+    return data[0].area
 
 
 def part2(data):
@@ -23,12 +24,16 @@ def solve():
 
     n = len(points)
 
-    edges = []
+    rectangles = []
     for i in range(n):
         for j in range(i + 1, n):
             p1, p2 = points[i], points[j]
-            distance = abs(p1.x - p2.x + 1) * abs(p1.y - p2.y + 1)
-            edges.append(Edge(distance, i, j))
-    edges.sort(reverse=True)
+            min_x, max_x = min(p1.x, p2.x), max(p1.x, p2.x)
+            min_y, max_y = min(p1.y, p2.y), max(p1.y, p2.y)
+            width = max_x - min_x + 1
+            height = max_y - min_y + 1
+            area = width * height
+            rectangles.append(Rectangle(area, min_x, max_x, min_y, max_x))
+    rectangles.sort(reverse=True)
 
-    return part1(edges), part2(data)
+    return part1(rectangles), part2(data)
