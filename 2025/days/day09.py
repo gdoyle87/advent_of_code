@@ -5,6 +5,7 @@ from utils.loader import load_lines
 Point = namedtuple("Point", ["x", "y"])
 Rectangle = namedtuple("Rectangle", ["area", "min_x", "max_x", "min_y", "max_y"])
 Edge = namedtuple("Edge", ["p1", "p2"])
+Polygon = namedtuple("Polygon", ["v_edges", "min_y", "max_y"])
 Data = namedtuple("Data", ["rectangles", "polygon"])
 
 
@@ -13,28 +14,13 @@ def part1(data):
 
 
 def part2(data):
-    def is_inside(edges, x, y):
-        cross_count = 0
-        for edge in edges:
-            if (y < edge.p1.y) != (y < edge.p2.y):
-                x_between = edge.p1.x + ((y - edge.p1.y) / (edge.p2.y - edge.p1.y)) * (
-                    edge.p2.x - edge.p1.x
-                )
-                if x < x_between:
-                    cross_count += 1
-        return cross_count % 2 == 1
+    row_spans = {}
+    for y in range(data.polygon.min_y, data.polygon.max_y + 1):
+        crossings = sorted(edge.p1.x for edge in data.polygon.v_edges if min(edge.p1.y, edge,p2.y) <= y < max(edge.p1.y, edge.p2.y)])
+        
+        row_spans[y] = [(crossings[i], crossings[i+1]) for i in range(0,len(crossings), 2)]
 
-    def check_rect(rect):
-        for x in range(rect.min_x, rect.max_x + 1):
-            for y in range(rect.min_y, rect.max_y + 1):
-                if not is_inside(data.polygon, x, y):
-                    return False
-        return True
-
-    for rectangle in data.rectangles:
-        if check_rect(rectangle):
-            return rectangle.area
-
+    print(row_spans)
 
 def solve():
     data = load_lines(9)
@@ -57,11 +43,17 @@ def solve():
             rectangles.append(Rectangle(area, min_x, max_x, min_y, max_y))
     rectangles.sort(reverse=True)
 
-    polygon = []
+    vertical_edges = []
+    polygon_min_y = points[0].y
+    polygon_max_y = points[0].y
     for i in range(len(points)):
         p1 = points[i]
         p2 = points[(i + 1) % n]
-        polygon.append(Edge(p1, p2))
+        if p1.x == p2.x:
+            vertical_edges.append(Edge(p1, p2))
+            polygon_min_y = min(polygon_min_y, p1.y, p2.y)
+            polygon_max_y = max(polygon_max_y, p1.y, p2.y)
+    polygon = Polygon(vertical_edges, polygon_min_y, polygon_max_y)
     data = Data(rectangles, polygon)
 
     print(polygon[:2])
