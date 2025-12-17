@@ -14,14 +14,26 @@ def part1(data):
 
 def part2(data):
     def is_inside(edges, x, y):
+        cross_count = 0
         for edge in edges:
-            print(edge)
             if (y < edge.p1.y) != (y < edge.p2.y):
-                print("y is between")
-            else:
-                print("y is not between")
+                x_between = edge.p1.x + ((y - edge.p1.y) / (edge.p2.y - edge.p1.y)) * (
+                    edge.p2.x - edge.p1.x
+                )
+                if x < x_between:
+                    cross_count += 1
+        return cross_count % 2 == 1
 
-    is_inside(data.polygon[:2], 1, 1)
+    def check_rect(rect):
+        for x in range(rect.min_x, rect.max_x + 1):
+            for y in range(rect.min_y, rect.max_y + 1):
+                if not is_inside(data.polygon, x, y):
+                    return False
+        return True
+
+    for rectangle in data.rectangles:
+        if check_rect(rectangle):
+            return rectangle.area
 
 
 def solve():
