@@ -40,7 +40,7 @@ def part1(data):
         edge = data.edges[k]
         dsu.union(edge.i, edge.j)
 
-    # circuit_sizes includes sizes for every point in edges, even when they are not a parent point.
+    # dsu.circuit_sizes includes sizes for every point in edges, even when they are not a parent point.
     # Therefore we need to filter out nodes where the circuit is not a parent.
     final_sizes = [dsu.circuit_sizes[i] for i in range(data.n) if dsu.parent[i] == i]
 
@@ -50,35 +50,13 @@ def part1(data):
 
 
 def part2(data):
-    parent = list(range(data.n))  # initialize each as its own parent
-    circuit_sizes = [1] * data.n  # each circuit begins as size 1
-
-    def union(i, j):
-        def find(i):
-            if parent[i] == i:
-                return i
-            parent[i] = find(parent[i])
-            return parent[i]
-
-        root_i = find(i)
-        root_j = find(j)
-
-        if root_i != root_j:
-            #            if circuit_sizes[root_i] < circuit_sizes[root_j]:
-            #                root_i, root_j = root_j, root_i
-
-            # update the parent of j to be parent of i
-            parent[root_j] = root_i
-            # update the size of circuit i to also include the size of circuit j
-            circuit_sizes[root_i] += circuit_sizes[root_j]
-            return True
-        return False
+    dsu = DisjointSet(data.n)
 
     # combine edges starting from shortest, stop once we have connected all points (needs n - 1 connections)
     connections = 0
     last_edge = None
     for edge in data.edges:
-        if union(edge.i, edge.j):
+        if dsu.union(edge.i, edge.j):
             connections += 1
             if connections == data.n - 1:
                 last_edge = edge
@@ -94,7 +72,7 @@ def solve():
         x, y, z = map(int, point.split(","))
         points.append(Point(x, y, z))
 
-    n = len(data)
+    n = len(points)
 
     edges = []
     for i in range(n):
