@@ -105,8 +105,8 @@ def part2(data):
             if connections == n - 1:
                 last_edge = edge
                 break
-    print(last_edge)
-    return
+
+    return data[last_edge.i].x * data[last_edge.j].x
 
 
 def solve():
