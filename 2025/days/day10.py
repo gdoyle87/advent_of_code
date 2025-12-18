@@ -1,4 +1,4 @@
-from collections import namedtuple
+from collections import deque, namedtuple
 
 from utils.loader import load_lines
 
@@ -6,7 +6,27 @@ Machine = namedtuple("Machine", ["diagram_len", "light_diagram", "buttons", "jol
 
 
 def part1(data):
-    print(data)
+    total_presses = 0
+    for i, machine in enumerate(data):
+        starting_state, starting_steps = 0, 0
+        seen = {starting_state}
+
+        queue = deque([(starting_state, starting_steps)])
+
+        while queue:
+            current_state, steps = queue.popleft()
+
+            if current_state == machine.light_diagram:
+                total_presses += steps
+                break
+            for btn_mask in machine.buttons:
+                next_state = current_state ^ btn_mask
+
+                if next_state not in seen:
+                    seen.add(next_state)
+                    queue.append((next_state, steps + 1))
+
+    return total_presses
 
 
 def part2(data):
