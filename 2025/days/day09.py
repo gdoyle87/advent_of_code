@@ -4,9 +4,8 @@ from utils.loader import load_lines
 
 Point = namedtuple("Point", ["x", "y"])
 Rectangle = namedtuple("Rectangle", ["area", "min_x", "max_x", "min_y", "max_y"])
-Edge = namedtuple("Edge", ["p1", "p2"])
-Polygon = namedtuple("Polygon", ["v_edges", "min_y", "max_y"])
-Data = namedtuple("Data", ["rectangles", "polygon"])
+Edge = namedtuple("Edge", ["p1", "p2", "etype"])
+Data = namedtuple("Data", ["points", "rectangles", "edges", "num_points"])
 
 
 def part1(data):
@@ -14,13 +13,36 @@ def part1(data):
 
 
 def part2(data):
-    row_spans = {}
-    for y in range(data.polygon.min_y, data.polygon.max_y + 1):
-        crossings = sorted(edge.p1.x for edge in data.polygon.v_edges if min(edge.p1.y, edge,p2.y) <= y < max(edge.p1.y, edge.p2.y)])
-        
-        row_spans[y] = [(crossings[i], crossings[i+1]) for i in range(0,len(crossings), 2)]
+    def is_point_inside(x, y):
+        crossings = 0
+        for edge in data.edges:
+            # only need to check vertical crossings
+            if edge.etype == "same_x":
+                low_y, high_y = min(edge.p1.y, edge.p2.y), max(edge.p1.y, edge.p2.y)
+                if low_y <= y < high_y and x <= edge.p1.x:
+                    crossings += 1
+        return crossings % 2 == 1
 
-    print(row_spans)
+    for rect in data.rectangles:
+        if not is_point_inside(rect.min_x, rect.min_y):
+            continue
+        rect_crossed = False
+        for edge in data.edges:
+            if edge.etype == "same_x":
+                low, high = min(edge.p1.y, edge.p2.y), max(edge.p1.y, edge.p2.y)
+                if rect.min_x < edge.p1.x < rect.max_x:
+                    if not (high <= rect.min_y or low >= rect.max_y):
+                        rect_crossed = True
+                        break
+            else:
+                low, high = min(edge.p1.x, edge.p2.x), max(edge.p1.x, edge.p2.x)
+                if rect.min_y < edge.p1.y < rect.max_y:
+                    if not (high <= rect.min_x or low >= rect.max_x):
+                        rect_crossed = True
+                        break
+        if not rect_crossed:
+            return rect.area
+
 
 def solve():
     data = load_lines(9)
@@ -43,19 +65,14 @@ def solve():
             rectangles.append(Rectangle(area, min_x, max_x, min_y, max_y))
     rectangles.sort(reverse=True)
 
-    vertical_edges = []
-    polygon_min_y = points[0].y
-    polygon_max_y = points[0].y
-    for i in range(len(points)):
-        p1 = points[i]
-        p2 = points[(i + 1) % n]
-        if p1.x == p2.x:
-            vertical_edges.append(Edge(p1, p2))
-            polygon_min_y = min(polygon_min_y, p1.y, p2.y)
-            polygon_max_y = max(polygon_max_y, p1.y, p2.y)
-    polygon = Polygon(vertical_edges, polygon_min_y, polygon_max_y)
-    data = Data(rectangles, polygon)
+    edges = []
+    for i in range(n - 1):
+        p1, p2 = points[i], points[i + 1]
+        etype = "same_x"
+        if p1.y == p2.y:
+            etype = "same_y"
+        edge = Edge(points[i], points[i + 1], etype)
+        edges.append(edge)
 
-    print(polygon[:2])
-
+    data = Data(points, rectangles, edges, n)
     return part1(data), part2(data)
