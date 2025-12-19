@@ -1,4 +1,5 @@
 from collections import deque, namedtuple
+from itertools import product
 
 from utils.loader import load_lines
 
@@ -182,54 +183,112 @@ def build_hnf_matrix(matrix):
     return hnf_matrix
 
 
-def solve_free_vars_after_sweep(hnf_matrix):
+def get_pivots_and_free_cols(hnf_matrix):
     num_rows = len(hnf_matrix)
     num_cols = len(hnf_matrix[0]) - 1
 
-    # Identify which columns are pivots and which are free variables
-    pivot_rows = {}  # {col: row}
-    free_cols = []
+    pivot_rows = {}
+    pivot_cols = set()
 
-    for c in range(num_cols):
-        found_pivot = False
-        for r in range(1, num_rows):
-            is_leading = True
-            for prev_c in range(c):
-                if hnf_matrix[r][prev_c] != 0:
-                    is_leading = False
-                    break
-
-            if is_leading and hnf_matrix[r][c] != 0:
-                pivot_rows[c] = r
-                found_pivot = True
+    for r in range(1, num_rows):
+        for c in range(num_cols):
+            if hnf_matrix[r][c] != 0:
+                if c not in pivot_cols:
+                    pivot_rows[c] = r
+                    pivot_cols.add(c)
                 break
-        if not found_pivot:
-            free_cols.append(c)
 
-    # Try small values for free variables to satisfy non-negative constraint
-    for val in range(101):  # Searching 0 to 100
-        results = {hnf_matrix[0][c]: val for c in free_cols}
-        possible = True
+    free_cols = [c for c in range(num_cols) if c not in pivot_cols]
+    return pivot_rows, free_cols
 
-        for c, r in pivot_rows.items():
-            # Pivot*Var + Sum(Coeff*FreeVar) = Target
-            target = hnf_matrix[r][-1]
-            sum_frees = sum(
-                hnf_matrix[r][fc] * results[hnf_matrix[0][fc]] for fc in free_cols
-            )
 
-            coeff = hnf_matrix[r][c]
-            remaining = target - sum_frees
+def solve_optimal_presses(hnf_matrix, pivot_rows, free_cols):
+    sorted_pivots = sorted(pivot_rows.items(), key=lambda x: x[1], reverse=True)
+    best_results = None
+    best_total = float("inf")
 
-            if remaining % coeff != 0 or (remaining // coeff) < 0:
-                possible = False
+    # 1. Identify "Candidate" values for free variables.
+    # We test 0 and the values that force pivots to 0.
+    candidates = {fc: {0} for fc in free_cols}
+
+    for fc in free_cols:
+        # Ratio test: how many times can we press fc before a pivot hits 0?
+        for val in range(1, 200):  # Small scan for local boundaries
+            if back_substitute(hnf_matrix, sorted_pivots, {hnf_matrix[0][fc]: val}):
+                candidates[fc].add(val)
+            else:
+                # val - 1 was the last valid point, add it as a candidate
+                if val > 1:
+                    candidates[fc].add(val - 1)
                 break
-            results[hnf_matrix[0][c]] = remaining // coeff
 
-        if possible:
-            return results
+    # 2. Check combinations of these key candidate points
 
-    return None
+    # We use a smaller product search only on the 'interesting' boundary points
+    for vals in product(*(candidates[fc] for fc in free_cols)):
+        current_guesses = {hnf_matrix[0][free_cols[i]]: v for i, v in enumerate(vals)}
+
+        sol = back_substitute(hnf_matrix, sorted_pivots, current_guesses)
+        if sol:
+            total = sum(sol.values())
+            if total < best_total:
+                best_total = total
+                best_results = sol
+
+    return best_results, best_total
+
+
+def back_substitute(hnf_matrix, sorted_pivots, results):
+    res = results.copy()
+    num_cols = len(hnf_matrix[0]) - 1
+
+    for c_idx, r_idx in sorted_pivots:
+        target = hnf_matrix[r_idx][-1]
+        sum_knowns = 0
+
+        for c in range(num_cols):
+            if c == c_idx:
+                continue
+            btn_id = hnf_matrix[0][c]
+            if btn_id in res:
+                sum_knowns += hnf_matrix[r_idx][c] * res[btn_id]
+
+        coeff = hnf_matrix[r_idx][c_idx]
+        remaining = target - sum_knowns
+
+        # 1. Division check: The remainder must be 0 for a valid integer solution
+        # 2. Non-negativity check: Button presses cannot be negative
+        if coeff == 0 or remaining % coeff != 0 or (remaining // coeff) < 0:
+            return None
+
+        res[hnf_matrix[0][c_idx]] = remaining // coeff
+
+    return res
+
+
+def solve_efficiently(hnf_matrix, pivot_rows, free_cols):
+    sorted_pivots = sorted(pivot_rows.items(), key=lambda x: x[1], reverse=True)
+    best_results = None
+    best_total = float("inf")
+
+    # Increased depth to 300 to account for machines that need
+    # higher free-variable values to balance negative row targets.
+    search_depth = 1000 if len(free_cols) < 3 else 100
+
+    for guesses in product(range(search_depth), repeat=len(free_cols)):
+        current_guesses = {
+            hnf_matrix[0][col]: val for col, val in zip(free_cols, guesses)
+        }
+
+        sol = back_substitute(hnf_matrix, sorted_pivots, current_guesses)
+
+        if sol:
+            current_total = sum(sol.values())
+            if current_total < best_total:
+                best_total = current_total
+                best_results = sol
+
+    return best_results, best_total
 
 
 def part2(data):
@@ -239,20 +298,22 @@ def part2(data):
     for machine in data:
         # NOTE: this adds an index row for tracking after column swapping.
         augmented_matrix = build_augmented_matrix(machine)
-
-        print("\n----- Augmented Matrix -----")
-        for row in augmented_matrix:
-            print(row)
-
-        print("\n-------- HNF Matrix --------")
         hnf_matrix = build_hnf_matrix(augmented_matrix)
-        for row in hnf_matrix:
-            print(row)
 
-        results = solve_free_vars_after_sweep(hnf_matrix)
-        print(results)
-        machine_presses = sum(val for _, val in results.items())
-        print(machine_presses)
+        # print("\n----- Augmented Matrix -----")
+        # for row in augmented_matrix:
+        #     print(row)
+
+        # print("\n-------- HNF Matrix --------")
+        # for row in hnf_matrix:
+        #     print(row)
+
+        pivot_rows, free_cols = get_pivots_and_free_cols(hnf_matrix)
+
+        # results = solve_optimal_presses(hnf_matrix, pivot_rows, free_cols)
+        results = solve_efficiently(hnf_matrix, pivot_rows, free_cols)
+        # print(results[1])
+        total_presses += results[1]
     return total_presses
 
 
