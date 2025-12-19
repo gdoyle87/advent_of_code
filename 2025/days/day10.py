@@ -202,42 +202,6 @@ def get_pivots_and_free_cols(hnf_matrix):
     return pivot_rows, free_cols
 
 
-def solve_optimal_presses(hnf_matrix, pivot_rows, free_cols):
-    sorted_pivots = sorted(pivot_rows.items(), key=lambda x: x[1], reverse=True)
-    best_results = None
-    best_total = float("inf")
-
-    # 1. Identify "Candidate" values for free variables.
-    # We test 0 and the values that force pivots to 0.
-    candidates = {fc: {0} for fc in free_cols}
-
-    for fc in free_cols:
-        # Ratio test: how many times can we press fc before a pivot hits 0?
-        for val in range(1, 200):  # Small scan for local boundaries
-            if back_substitute(hnf_matrix, sorted_pivots, {hnf_matrix[0][fc]: val}):
-                candidates[fc].add(val)
-            else:
-                # val - 1 was the last valid point, add it as a candidate
-                if val > 1:
-                    candidates[fc].add(val - 1)
-                break
-
-    # 2. Check combinations of these key candidate points
-
-    # We use a smaller product search only on the 'interesting' boundary points
-    for vals in product(*(candidates[fc] for fc in free_cols)):
-        current_guesses = {hnf_matrix[0][free_cols[i]]: v for i, v in enumerate(vals)}
-
-        sol = back_substitute(hnf_matrix, sorted_pivots, current_guesses)
-        if sol:
-            total = sum(sol.values())
-            if total < best_total:
-                best_total = total
-                best_results = sol
-
-    return best_results, best_total
-
-
 def back_substitute(hnf_matrix, sorted_pivots, results):
     res = results.copy()
     num_cols = len(hnf_matrix[0]) - 1
@@ -256,8 +220,6 @@ def back_substitute(hnf_matrix, sorted_pivots, results):
         coeff = hnf_matrix[r_idx][c_idx]
         remaining = target - sum_knowns
 
-        # 1. Division check: The remainder must be 0 for a valid integer solution
-        # 2. Non-negativity check: Button presses cannot be negative
         if coeff == 0 or remaining % coeff != 0 or (remaining // coeff) < 0:
             return None
 
@@ -271,7 +233,7 @@ def solve_efficiently(hnf_matrix, pivot_rows, free_cols):
     best_results = None
     best_total = float("inf")
 
-    # Increased depth to 300 to account for machines that need
+    # Increased depth to 1000 and drops to 100 to account for machines that need
     # higher free-variable values to balance negative row targets.
     search_depth = 1000 if len(free_cols) < 3 else 100
 
